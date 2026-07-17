@@ -313,6 +313,7 @@ client.on("interactionCreate", async (interaction) => {
       const user = getUser(targetUser.id);
       const total = getUserTotalSeconds(targetUser.id, interaction.guildId);
       const weekly = getWeeklySeconds(targetUser.id, interaction.guildId);
+      const globalTotal = interaction.guildId ? getUserTotalSeconds(targetUser.id, null) : total;
       const title = getTitleForWeeklySeconds(weekly);
       const family = getAccountFamily(targetUser.id);
       const linked = family.memberType === "sub"
@@ -320,15 +321,21 @@ client.on("interactionCreate", async (interaction) => {
         : family.subs.length
           ? `紐付け済みサブアカウント: ${family.subs.map((s) => s.username).join("、")}`
           : "紐付けなし";
+      const fields = [
+        { name: "累計学習時間", value: formatDuration(total), inline: false },
+        { name: "今週の学習時間", value: formatDuration(weekly), inline: false },
+      ];
+      if (interaction.guildId && globalTotal !== total) {
+        fields.push({ name: "全体累計学習時間", value: formatDuration(globalTotal), inline: false });
+      }
+      fields.push(
+        { name: "週間称号", value: title, inline: true },
+        { name: "レベル", value: `${user.level} (XP: ${user.xp})`, inline: true },
+        { name: "アカウント状況", value: linked, inline: false }
+      );
       const embed = new EmbedBuilder()
         .setTitle(`${targetUser.username} さんの学習記録`)
-        .addFields(
-          { name: "累計学習時間", value: formatDuration(total), inline: false },
-          { name: "今週の学習時間", value: formatDuration(weekly), inline: false },
-          { name: "週間称号", value: title, inline: true },
-          { name: "レベル", value: `${user.level} (XP: ${user.xp})`, inline: true },
-          { name: "アカウント状況", value: linked, inline: false }
-        )
+        .addFields(fields)
         .setColor(0x3b82f6)
         .setTimestamp();
       return await interaction.reply({ embeds: [embed] });
