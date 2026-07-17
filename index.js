@@ -12,6 +12,7 @@ import {
   stopSession,
   pauseSession,
   resumeSession,
+  getActiveSession,
   getAnyActiveSession,
   getSessionElapsedSeconds,
   editUserTime,
@@ -208,20 +209,22 @@ client.once("ready", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== "study") return;
+  try {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName !== "study") return;
 
-  const subcommand = interaction.options.getSubcommand();
-  const author = interaction.user;
-  ensureUser(author.id, author.username);
+    const subcommand = interaction.options.getSubcommand();
+    console.log(`[interaction] ${interaction.user.tag} ${interaction.commandName} ${subcommand} guild=${interaction.guildId}`);
+    const author = interaction.user;
+    ensureUser(author.id, author.username);
 
-  switch (subcommand) {
+    switch (subcommand) {
     case "start": {
       const targetUser = interaction.options.getUser("user");
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const active = getActiveSession(authorizedTargetId);
       if (active) {
@@ -235,7 +238,7 @@ client.on("interactionCreate", async (interaction) => {
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
@@ -255,7 +258,7 @@ client.on("interactionCreate", async (interaction) => {
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
@@ -270,7 +273,7 @@ client.on("interactionCreate", async (interaction) => {
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
@@ -288,7 +291,7 @@ client.on("interactionCreate", async (interaction) => {
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
@@ -356,7 +359,7 @@ client.on("interactionCreate", async (interaction) => {
     case "achievements": {
       const achievements = listAchievements(author.id, interaction.guildId);
       if (achievements.length === 0) {
-        return interaction.reply({ content: "まだ実績はありません。継続して学習しましょう！", ephemeral: true });
+        return interaction.reply({ content: "まだ実績はありません。継続して学習しましょう！", flags: 64 });
       }
       const description = achievements.map((item) => `• **${item.name}** - ${item.description}`).join("\n");
       const embed = new EmbedBuilder()
@@ -369,19 +372,19 @@ client.on("interactionCreate", async (interaction) => {
       const main = interaction.options.getUser("main", true);
       const sub = interaction.options.getUser("sub", true);
       if (main.id === sub.id) {
-        return interaction.reply({ content: "メインアカウントとサブアカウントは別のユーザーである必要があります。", ephemeral: true });
+        return interaction.reply({ content: "メインアカウントとサブアカウントは別のユーザーである必要があります。", flags: 64 });
       }
       ensureUser(main.id, main.username);
       ensureUser(sub.id, sub.username);
       if (!linkSubAccount(main.id, sub.id)) {
-        return interaction.reply({ content: "紐付けに失敗しました。すでに紐付け済みか、対象がメインアカウントとして使用できない可能性があります。", ephemeral: true });
+        return interaction.reply({ content: "紐付けに失敗しました。すでに紐付け済みか、対象がメインアカウントとして使用できない可能性があります。", flags: 64 });
       }
       return interaction.reply({ content: `${sub.username} を ${main.username} のサブアカウントとして紐付けました。`, ephemeral: false });
     }
     case "unlink": {
       const sub = interaction.options.getUser("sub", true);
       if (!unlinkSubAccount(sub.id)) {
-        return interaction.reply({ content: "紐付け解除に失敗しました。対象はサブアカウントではない可能性があります。", ephemeral: true });
+        return interaction.reply({ content: "紐付け解除に失敗しました。対象はサブアカウントではない可能性があります。", flags: 64 });
       }
       return interaction.reply({ content: `${sub.username} の紐付けを解除しました。`, ephemeral: false });
     }
@@ -390,17 +393,24 @@ client.on("interactionCreate", async (interaction) => {
       const seconds = interaction.options.getInteger("seconds", true);
       const reason = interaction.options.getString("reason") ?? "管理者による修正";
       if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({ content: "このコマンドを実行するには管理者権限が必要です。", ephemeral: true });
+        return interaction.reply({ content: "このコマンドを実行するには管理者権限が必要です。", flags: 64 });
       }
       ensureUser(member.id, member.username);
       const updated = editUserTime(member.id, seconds, reason, interaction.guildId);
       if (!updated) {
-        return interaction.reply({ content: "指定したユーザーが見つかりませんでした。", ephemeral: true });
+        return interaction.reply({ content: "指定したユーザーが見つかりませんでした。", flags: 64 });
       }
       return interaction.reply({ content: `${member.username} の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}`, ephemeral: false });
     }
     default:
-      return interaction.reply({ content: "不明なサブコマンドです。", ephemeral: true });
+      return interaction.reply({ content: "不明なサブコマンドです。", flags: 64 });
+  }
+  } catch (error) {
+    console.error("interaction error:", error);
+    if (interaction.replied || interaction.deferred) {
+      return interaction.followUp({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
+    }
+    return interaction.reply({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
   }
 });
 
