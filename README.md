@@ -18,7 +18,8 @@ Discordサーバー向けの学習記録ボットです。
 2. `npm install`
 3. `.env` を作成し、`DISCORD_TOKEN` と `GUILD_ID` を設定
    - 既存のJSONデータベースが `studybot.sqlite` というファイル名の場合は `DATABASE_FILE=studybot.sqlite` を追加します
-   - 新規運用では `DATABASE_FILE=studybot-data.json` を使います
+   - 今後JSONで運用する場合は `DATABASE_FILE=studybot-data.json` を使用します
+   - `studybot-data.json` が存在せず、`studybot.sqlite` にデータがあれば起動時に自動で移行されます
 4. `npm start`
 
 ## 使い方

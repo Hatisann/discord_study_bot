@@ -14,12 +14,50 @@ function saveDb() {
 }
 
 export function initDatabase(filename = "studybot-data.json") {
-  dbPath = resolve(process.cwd(), filename);
+  const defaultJsonPath = resolve(process.cwd(), "studybot-data.json");
   const legacyPath = resolve(process.cwd(), "studybot.sqlite");
+  dbPath = resolve(process.cwd(), filename);
 
-  if (!existsSync(dbPath) && filename === "studybot-data.json" && existsSync(legacyPath)) {
-    console.warn(`Database file ${dbPath} not found. Falling back to legacy database file ${legacyPath}.`);
-    dbPath = legacyPath;
+  if (filename === "studybot-data.json") {
+    if (!existsSync(dbPath) && existsSync(legacyPath)) {
+      console.warn(`Database file ${dbPath} not found. Migrating legacy data from ${legacyPath} to ${defaultJsonPath}.`);
+      const legacyRaw = readFileSync(legacyPath, "utf8");
+      data = JSON.parse(legacyRaw);
+      data.users = data.users || {};
+      data.sessions = data.sessions || [];
+      data.achievements = data.achievements || [];
+      data.nextSessionId = data.nextSessionId || 1;
+      dbPath = defaultJsonPath;
+      saveDb();
+      return;
+    }
+
+    if (existsSync(defaultJsonPath)) {
+      try {
+        const raw = readFileSync(defaultJsonPath, "utf8");
+        const parsed = JSON.parse(raw);
+        if (
+          (!parsed.users || Object.keys(parsed.users).length === 0) &&
+          (!parsed.sessions || parsed.sessions.length === 0) &&
+          (!parsed.achievements || parsed.achievements.length === 0) &&
+          existsSync(legacyPath)
+        ) {
+          console.warn(`Default database file ${defaultJsonPath} is empty. Migrating legacy data from ${legacyPath}.`);
+          const legacyRaw = readFileSync(legacyPath, "utf8");
+          data = JSON.parse(legacyRaw);
+          data.users = data.users || {};
+          data.sessions = data.sessions || [];
+          data.achievements = data.achievements || [];
+          data.nextSessionId = data.nextSessionId || 1;
+          dbPath = defaultJsonPath;
+          saveDb();
+          return;
+        }
+      } catch (error) {
+        console.error(`Failed to parse default database file at ${defaultJsonPath}: ${error.message}`);
+        process.exit(1);
+      }
+    }
   }
 
   if (existsSync(dbPath)) {
@@ -30,32 +68,6 @@ export function initDatabase(filename = "studybot-data.json") {
       data.sessions = data.sessions || [];
       data.achievements = data.achievements || [];
       data.nextSessionId = data.nextSessionId || 1;
-
-      if (
-        filename === "studybot-data.json" &&
-        dbPath === resolve(process.cwd(), "studybot-data.json") &&
-        Object.keys(data.users).length === 0 &&
-        data.sessions.length === 0 &&
-        data.achievements.length === 0 &&
-        existsSync(legacyPath)
-      ) {
-        const legacyRaw = readFileSync(legacyPath, "utf8");
-        const legacyData = JSON.parse(legacyRaw);
-        if (
-          legacyData &&
-          Object.keys(legacyData.users || {}).length > 0 ||
-          (legacyData.sessions || []).length > 0 ||
-          (legacyData.achievements || []).length > 0
-        ) {
-          console.warn(`Default database file ${dbPath} is empty. Loading legacy database ${legacyPath} instead.`);
-          dbPath = legacyPath;
-          data = legacyData;
-          data.users = data.users || {};
-          data.sessions = data.sessions || [];
-          data.achievements = data.achievements || [];
-          data.nextSessionId = data.nextSessionId || 1;
-        }
-      }
     } catch (error) {
       console.error(`Failed to parse database file at ${dbPath}: ${error.message}`);
       console.error("DATABASE_FILE must point to a valid JSON database file.");
