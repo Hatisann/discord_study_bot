@@ -72,7 +72,10 @@ const commands = [
         .addUserOption((opt) => opt.setName("user").setDescription("自分または紐付けたアカウント").setRequired(false))
     )
     .addSubcommand((sub) =>
-      sub.setName("stats").setDescription("自分の学習記録を確認します")
+      sub
+        .setName("stats")
+        .setDescription("自分または指定したユーザーの学習記録を確認します")
+        .addUserOption((opt) => opt.setName("user").setDescription("対象ユーザー").setRequired(false))
     )
     .addSubcommand((sub) =>
       sub.setName("leaderboard").setDescription("サーバーの学習ランキングを表示します")
@@ -106,7 +109,8 @@ const commands = [
     .addSubcommand((sub) =>
       sub
         .setName("achievements")
-        .setDescription("実績を確認します")
+        .setDescription("自分または指定したユーザーの実績を確認します")
+        .addUserOption((opt) => opt.setName("user").setDescription("対象ユーザー").setRequired(false))
     )
     .addSubcommand((sub) =>
       sub
@@ -304,18 +308,20 @@ client.on("interactionCreate", async (interaction) => {
       return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を再開しました！📚` });
     }
     case "stats": {
-      const user = getUser(author.id);
-      const total = getUserTotalSeconds(author.id, interaction.guildId);
-      const weekly = getWeeklySeconds(author.id, interaction.guildId);
+      const targetUser = interaction.options.getUser("user") ?? author;
+      ensureUser(targetUser.id, targetUser.username);
+      const user = getUser(targetUser.id);
+      const total = getUserTotalSeconds(targetUser.id, interaction.guildId);
+      const weekly = getWeeklySeconds(targetUser.id, interaction.guildId);
       const title = getTitleForWeeklySeconds(weekly);
-      const family = getAccountFamily(author.id);
+      const family = getAccountFamily(targetUser.id);
       const linked = family.memberType === "sub"
         ? `メインアカウント: ${family.main.username}`
         : family.subs.length
           ? `紐付け済みサブアカウント: ${family.subs.map((s) => s.username).join("、")}`
           : "紐付けなし";
       const embed = new EmbedBuilder()
-        .setTitle(`${author.username} さんの学習記録`)
+        .setTitle(`${targetUser.username} さんの学習記録`)
         .addFields(
           { name: "累計学習時間", value: formatDuration(total), inline: false },
           { name: "今週の学習時間", value: formatDuration(weekly), inline: false },
@@ -357,13 +363,15 @@ client.on("interactionCreate", async (interaction) => {
       return await interaction.reply({ embeds: [embed] });
     }
     case "achievements": {
-      const achievements = listAchievements(author.id, interaction.guildId);
+      const targetUser = interaction.options.getUser("user") ?? author;
+      ensureUser(targetUser.id, targetUser.username);
+      const achievements = listAchievements(targetUser.id, interaction.guildId);
       if (achievements.length === 0) {
         return await interaction.reply({ content: "まだ実績はありません。継続して学習しましょう！", flags: 64 });
       }
       const description = achievements.map((item) => `• **${item.name}** - ${item.description}`).join("\n");
       const embed = new EmbedBuilder()
-        .setTitle(`${author.username} さんの実績`)
+        .setTitle(`${targetUser.username} さんの実績`)
         .setDescription(description)
         .setColor(0xf59e0b);
       return await interaction.reply({ embeds: [embed] });
@@ -407,6 +415,10 @@ client.on("interactionCreate", async (interaction) => {
   }
   } catch (error) {
     console.error("interaction error:", error);
+    if (error?.code === 10062 || error?.code === 40060) {
+      // Unknown interaction or already-acknowledged interaction.
+      return;
+    }
     try {
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
@@ -421,6 +433,14 @@ client.on("interactionCreate", async (interaction) => {
 
 client.on("error", (error) => {
   console.error("Discord client error:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
 });
 
 client.login(token);

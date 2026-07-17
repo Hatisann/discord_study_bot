@@ -76,6 +76,15 @@ function sessionMatchesGuild(session, guildId) {
   return session.guild_id === guildId || session.guild_id == null;
 }
 
+function getFamilyIds(discordId) {
+  const family = getAccountFamily(discordId);
+  if (!family) return [discordId];
+  if (family.memberType === "sub") {
+    return [family.main.discord_id, ...family.main.subs.map((sub) => sub.discord_id)];
+  }
+  return [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
+}
+
 function sumSessions(userIds, options = {}) {
   const { guildId = null, startTs = 0 } = options;
   return data.sessions
@@ -188,12 +197,7 @@ export function editUserTime(discordId, secondsDelta, note = "edited by admin", 
 }
 
 export function getUserTotalSeconds(discordId, guildId = null) {
-  const family = getAccountFamily(discordId);
-  if (!family) return 0;
-  if (family.memberType === "sub") {
-    return 0;
-  }
-  const ids = [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
+  const ids = getFamilyIds(discordId);
   return sumSessions(ids, { guildId });
 }
 
@@ -207,10 +211,7 @@ function getWeekStartTs(timestamp) {
 }
 
 export function getWeeklySeconds(discordId, guildId = null) {
-  const family = getAccountFamily(discordId);
-  if (!family) return 0;
-  if (family.memberType === "sub") return 0;
-  const ids = [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
+  const ids = getFamilyIds(discordId);
   const weekStart = getWeekStartTs(Math.floor(Date.now() / 1000));
   return sumSessions(ids, { guildId, startTs: weekStart });
 }
@@ -257,12 +258,9 @@ export function addXp(discordId, xp) {
 }
 
 export function getSessionsForChart(discordId, days = 14, guildId = null) {
-  const family = getAccountFamily(discordId);
-  if (!family) return [];
-  if (family.memberType === "sub") return [];
+  const ids = getFamilyIds(discordId);
   const now = Math.floor(Date.now() / 1000);
   const earliest = now - days * 86400;
-  const ids = [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
   const totals = {};
   for (const session of data.sessions) {
     if (!ids.includes(session.user_id)) continue;
