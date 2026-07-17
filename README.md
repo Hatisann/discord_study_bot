@@ -21,11 +21,11 @@ Discordサーバー向けの学習記録ボットです。
 
 ## 使い方
 
-- `/study start`
-- `/study stop`
-- `/study current`
-- `/study pause`
-- `/study resume`
+- `/study start [user]`
+- `/study stop [user]`
+- `/study current [user]`
+- `/study pause [user]`
+- `/study resume [user]`
 - `/study stats`
 - `/study leaderboard`
 - `/study graph`

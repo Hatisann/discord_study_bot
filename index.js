@@ -58,8 +58,18 @@ const commands = [
   new SlashCommandBuilder()
     .setName("study")
     .setDescription("学習時間を記録・確認するコマンド")
-    .addSubcommand((sub) => sub.setName("start").setDescription("勉強を開始します"))
-    .addSubcommand((sub) => sub.setName("stop").setDescription("勉強を終了します"))
+    .addSubcommand((sub) =>
+      sub
+        .setName("start")
+        .setDescription("勉強を開始します")
+        .addUserOption((opt) => opt.setName("user").setDescription("自分または紐付けたアカウント").setRequired(false))
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("stop")
+        .setDescription("勉強を終了します")
+        .addUserOption((opt) => opt.setName("user").setDescription("自分または紐付けたアカウント").setRequired(false))
+    )
     .addSubcommand((sub) =>
       sub.setName("stats").setDescription("自分の学習記録を確認します")
     )
@@ -78,16 +88,19 @@ const commands = [
       sub
         .setName("current")
         .setDescription("現在の学習タイマーを表示します")
+        .addUserOption((opt) => opt.setName("user").setDescription("自分または紐付けたアカウント").setRequired(false))
     )
     .addSubcommand((sub) =>
       sub
         .setName("pause")
         .setDescription("現在の学習を一時停止します")
+        .addUserOption((opt) => opt.setName("user").setDescription("自分または紐付けたアカウント").setRequired(false))
     )
     .addSubcommand((sub) =>
       sub
         .setName("resume")
         .setDescription("一時停止中の学習を再開します")
+        .addUserOption((opt) => opt.setName("user").setDescription("自分または紐付けたアカウント").setRequired(false))
     )
     .addSubcommand((sub) =>
       sub
@@ -142,6 +155,18 @@ function formatDuration(seconds) {
   return `${h}時間 ${m}分 ${s}秒`;
 }
 
+function getAuthorizedTargetId(actorId, targetId) {
+  if (!targetId || targetId === actorId) return actorId;
+  const family = getAccountFamily(actorId);
+  if (!family) return null;
+  if (family.memberType === "main") {
+    if (family.subs.some((sub) => sub.discord_id === targetId)) return targetId;
+  } else {
+    if (family.main.discord_id === targetId) return targetId;
+  }
+  return null;
+}
+
 function createChartUrl(labels, values, username) {
   const config = {
     type: "bar",
@@ -192,24 +217,33 @@ client.on("interactionCreate", async (interaction) => {
 
   switch (subcommand) {
     case "start": {
-      const active = getAnyActiveSession(author.id);
-      if (active) {
-        return interaction.reply({ content: "すでに学習中です。先に`/study stop`で終了してください。", ephemeral: false });
+      const targetUser = interaction.options.getUser("user");
+      const targetId = targetUser?.id ?? author.id;
+      const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
+      if (!authorizedTargetId) {
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
       }
-      startSession(author.id, interaction.guildId);
-      return interaction.reply({ content: "勉強を開始しました！📚", ephemeral: false });
+      const active = getActiveSession(authorizedTargetId);
+      if (active) {
+        return interaction.reply({ content: `${targetUser ? targetUser.username : "対象"} はすでに学習中です。先に /study stop してください。`, ephemeral: false });
+      }
+      startSession(authorizedTargetId, interaction.guildId);
+      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}開始しました！📚`, ephemeral: false });
     }
     case "stop": {
-      const session = getAnyActiveSession(author.id);
+      const targetUser = interaction.options.getUser("user");
+      const targetId = targetUser?.id ?? author.id;
+      const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
+      if (!authorizedTargetId) {
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+      }
+      const session = getActiveSession(authorizedTargetId);
       if (!session) {
         return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
       }
-      if (session.user_id !== author.id && session.user_id !== getAccountFamily(author.id)?.main?.discord_id) {
-        return interaction.reply({ content: "別アカウントのセッションが進行中のようです。先に停止してください。", ephemeral: true });
-      }
       const stopped = stopSession(session.user_id);
       const award = awardSessionXpAndAchievements(session.user_id, stopped.duration_seconds, session.guild_id);
-      let response = `勉強を終了しました！所要時間: **${formatDuration(stopped.duration_seconds)}**\n`;
+      let response = `${targetUser ? `${targetUser.username} の` : "勉強"}終了しました！所要時間: **${formatDuration(stopped.duration_seconds)}**\n`;
       response += `経験値 +${award.earnedXp}、現在のレベル: **${award.level}**\n`;
       if (award.unlocked.length > 0) {
         response += `🎉 新しい実績を獲得しました: ${award.unlocked.map((item) => item.name).join("、")}\n`;
@@ -217,42 +251,54 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: response, ephemeral: false });
     }
     case "current": {
-      const session = getAnyActiveSession(author.id);
+      const targetUser = interaction.options.getUser("user");
+      const targetId = targetUser?.id ?? author.id;
+      const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
+      if (!authorizedTargetId) {
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+      }
+      const session = getActiveSession(authorizedTargetId);
       if (!session) {
         return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
       }
       const elapsed = getSessionElapsedSeconds(session);
       const status = session.paused_at != null ? "一時停止中" : "進行中";
-      return interaction.reply({ content: `現在の学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "現在の"}学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
     }
     case "pause": {
-      const session = getAnyActiveSession(author.id);
+      const targetUser = interaction.options.getUser("user");
+      const targetId = targetUser?.id ?? author.id;
+      const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
+      if (!authorizedTargetId) {
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+      }
+      const session = getActiveSession(authorizedTargetId);
       if (!session) {
         return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
       }
       if (session.paused_at != null) {
         return interaction.reply({ content: "すでに一時停止中です。/study resume で再開できます。", ephemeral: false });
       }
-      if (session.user_id !== author.id && session.user_id !== getAccountFamily(author.id)?.main?.discord_id) {
-        return interaction.reply({ content: "別アカウントのセッションが進行中のようです。先に停止してください。", ephemeral: true });
-      }
       const paused = pauseSession(session.user_id);
       const elapsed = getSessionElapsedSeconds(paused);
-      return interaction.reply({ content: `学習を一時停止しました。経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を一時停止しました。経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
     }
     case "resume": {
-      const session = getAnyActiveSession(author.id);
+      const targetUser = interaction.options.getUser("user");
+      const targetId = targetUser?.id ?? author.id;
+      const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
+      if (!authorizedTargetId) {
+        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", ephemeral: true });
+      }
+      const session = getActiveSession(authorizedTargetId);
       if (!session) {
         return interaction.reply({ content: "再開する一時停止中の学習が見つかりません。", ephemeral: false });
       }
       if (session.paused_at == null) {
         return interaction.reply({ content: "現在、停止中のセッションはありません。", ephemeral: false });
       }
-      if (session.user_id !== author.id && session.user_id !== getAccountFamily(author.id)?.main?.discord_id) {
-        return interaction.reply({ content: "このセッションは再開できません。", ephemeral: true });
-      }
       resumeSession(session.user_id);
-      return interaction.reply({ content: "学習を再開しました！📚", ephemeral: false });
+      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を再開しました！📚`, ephemeral: false });
     }
     case "stats": {
       const user = getUser(author.id);
