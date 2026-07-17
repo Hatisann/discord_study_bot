@@ -10,7 +10,10 @@ import {
   getTitleForWeeklySeconds,
   startSession,
   stopSession,
+  pauseSession,
+  resumeSession,
   getAnyActiveSession,
+  getSessionElapsedSeconds,
   editUserTime,
   getLeaderboard,
   listAchievements,
@@ -70,6 +73,21 @@ const commands = [
         .addIntegerOption((opt) =>
           opt.setName("days").setDescription("何日分のグラフを表示するか(最大30)").setMinValue(1).setMaxValue(30)
         )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("current")
+        .setDescription("現在の学習タイマーを表示します")
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("pause")
+        .setDescription("現在の学習を一時停止します")
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("resume")
+        .setDescription("一時停止中の学習を再開します")
     )
     .addSubcommand((sub) =>
       sub
@@ -178,7 +196,7 @@ client.on("interactionCreate", async (interaction) => {
       if (active) {
         return interaction.reply({ content: "すでに学習中です。先に`/study stop`で終了してください。", ephemeral: false });
       }
-      startSession(author.id);
+      startSession(author.id, interaction.guildId);
       return interaction.reply({ content: "勉強を開始しました！📚", ephemeral: false });
     }
     case "stop": {
@@ -190,7 +208,7 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.reply({ content: "別アカウントのセッションが進行中のようです。先に停止してください。", ephemeral: true });
       }
       const stopped = stopSession(session.user_id);
-      const award = awardSessionXpAndAchievements(session.user_id, stopped.duration_seconds);
+      const award = awardSessionXpAndAchievements(session.user_id, stopped.duration_seconds, session.guild_id);
       let response = `勉強を終了しました！所要時間: **${formatDuration(stopped.duration_seconds)}**\n`;
       response += `経験値 +${award.earnedXp}、現在のレベル: **${award.level}**\n`;
       if (award.unlocked.length > 0) {
@@ -198,10 +216,48 @@ client.on("interactionCreate", async (interaction) => {
       }
       return interaction.reply({ content: response, ephemeral: false });
     }
+    case "current": {
+      const session = getAnyActiveSession(author.id);
+      if (!session) {
+        return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+      }
+      const elapsed = getSessionElapsedSeconds(session);
+      const status = session.paused_at != null ? "一時停止中" : "進行中";
+      return interaction.reply({ content: `現在の学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+    }
+    case "pause": {
+      const session = getAnyActiveSession(author.id);
+      if (!session) {
+        return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+      }
+      if (session.paused_at != null) {
+        return interaction.reply({ content: "すでに一時停止中です。/study resume で再開できます。", ephemeral: false });
+      }
+      if (session.user_id !== author.id && session.user_id !== getAccountFamily(author.id)?.main?.discord_id) {
+        return interaction.reply({ content: "別アカウントのセッションが進行中のようです。先に停止してください。", ephemeral: true });
+      }
+      const paused = pauseSession(session.user_id);
+      const elapsed = getSessionElapsedSeconds(paused);
+      return interaction.reply({ content: `学習を一時停止しました。経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+    }
+    case "resume": {
+      const session = getAnyActiveSession(author.id);
+      if (!session) {
+        return interaction.reply({ content: "再開する一時停止中の学習が見つかりません。", ephemeral: false });
+      }
+      if (session.paused_at == null) {
+        return interaction.reply({ content: "現在、停止中のセッションはありません。", ephemeral: false });
+      }
+      if (session.user_id !== author.id && session.user_id !== getAccountFamily(author.id)?.main?.discord_id) {
+        return interaction.reply({ content: "このセッションは再開できません。", ephemeral: true });
+      }
+      resumeSession(session.user_id);
+      return interaction.reply({ content: "学習を再開しました！📚", ephemeral: false });
+    }
     case "stats": {
       const user = getUser(author.id);
-      const total = getUserTotalSeconds(author.id);
-      const weekly = getWeeklySeconds(author.id);
+      const total = getUserTotalSeconds(author.id, interaction.guildId);
+      const weekly = getWeeklySeconds(author.id, interaction.guildId);
       const title = getTitleForWeeklySeconds(weekly);
       const family = getAccountFamily(author.id);
       const linked = family.memberType === "sub"
@@ -223,7 +279,7 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ embeds: [embed], ephemeral: false });
     }
     case "leaderboard": {
-      const top = getLeaderboard(10);
+      const top = getLeaderboard(10, interaction.guildId);
       const description = top.map((entry, idx) => `${idx + 1}. ${entry.username} - ${formatDuration(entry.total_seconds)}`).join("\n");
       const embed = new EmbedBuilder()
         .setTitle("学習ランキング")
@@ -233,7 +289,7 @@ client.on("interactionCreate", async (interaction) => {
     }
     case "graph": {
       const days = interaction.options.getInteger("days") ?? 14;
-      const sessions = getSessionsForChart(author.id, days);
+      const sessions = getSessionsForChart(author.id, days, interaction.guildId);
       const labels = [];
       const values = [];
       const now = new Date();
@@ -252,7 +308,7 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ embeds: [embed] });
     }
     case "achievements": {
-      const achievements = listAchievements(author.id);
+      const achievements = listAchievements(author.id, interaction.guildId);
       if (achievements.length === 0) {
         return interaction.reply({ content: "まだ実績はありません。継続して学習しましょう！", ephemeral: true });
       }
@@ -291,7 +347,7 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.reply({ content: "このコマンドを実行するには管理者権限が必要です。", ephemeral: true });
       }
       ensureUser(member.id, member.username);
-      const updated = editUserTime(member.id, seconds, reason);
+      const updated = editUserTime(member.id, seconds, reason, interaction.guildId);
       if (!updated) {
         return interaction.reply({ content: "指定したユーザーが見つかりませんでした。", ephemeral: true });
       }

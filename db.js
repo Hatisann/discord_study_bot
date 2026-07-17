@@ -71,6 +71,23 @@ export function getAccountFamily(discordId) {
   return { memberType: "main", main: own, subs };
 }
 
+function sessionMatchesGuild(session, guildId) {
+  if (!guildId) return true;
+  return session.guild_id === guildId || session.guild_id == null;
+}
+
+function sumSessions(userIds, options = {}) {
+  const { guildId = null, startTs = 0 } = options;
+  return data.sessions
+    .filter((session) =>
+      userIds.includes(session.user_id) &&
+      session.end_ts &&
+      session.end_ts >= startTs &&
+      sessionMatchesGuild(session, guildId)
+    )
+    .reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
+}
+
 export function getActiveSession(discordId) {
   return data.sessions.find((session) => session.user_id === discordId && session.end_ts == null) || null;
 }
@@ -86,13 +103,16 @@ export function getAnyActiveSession(discordId) {
   return family.subs.find((sub) => getActiveSession(sub.discord_id)) || null;
 }
 
-export function startSession(discordId, note = null) {
+export function startSession(discordId, guildId = null, note = null) {
   const session = {
     id: data.nextSessionId++,
     user_id: discordId,
+    guild_id: guildId,
     start_ts: Math.floor(Date.now() / 1000),
     end_ts: null,
     duration_seconds: null,
+    accumulated_seconds: 0,
+    paused_at: null,
     note,
     created_at: Math.floor(Date.now() / 1000),
   };
@@ -105,9 +125,14 @@ export function stopSession(discordId) {
   const session = getActiveSession(discordId);
   if (!session) return null;
   const now = Math.floor(Date.now() / 1000);
-  const seconds = now - session.start_ts;
+  let seconds = session.accumulated_seconds || 0;
+  if (session.paused_at == null) {
+    seconds += now - session.start_ts;
+  }
   session.end_ts = now;
   session.duration_seconds = seconds;
+  session.accumulated_seconds = seconds;
+  session.paused_at = null;
   const user = getUserRow(discordId);
   if (user) {
     user.total_seconds += seconds;
@@ -117,7 +142,33 @@ export function stopSession(discordId) {
   return session;
 }
 
-export function editUserTime(discordId, secondsDelta, note = "edited by admin") {
+export function pauseSession(discordId) {
+  const session = getActiveSession(discordId);
+  if (!session || session.paused_at != null) return null;
+  const now = Math.floor(Date.now() / 1000);
+  session.accumulated_seconds = (session.accumulated_seconds || 0) + (now - session.start_ts);
+  session.paused_at = now;
+  saveDb();
+  return session;
+}
+
+export function resumeSession(discordId) {
+  const session = getActiveSession(discordId);
+  if (!session || session.paused_at == null) return null;
+  session.start_ts = Math.floor(Date.now() / 1000);
+  session.paused_at = null;
+  saveDb();
+  return session;
+}
+
+export function getSessionElapsedSeconds(session) {
+  if (!session) return 0;
+  const base = session.accumulated_seconds || 0;
+  if (session.paused_at != null) return base;
+  return base + (Math.floor(Date.now() / 1000) - session.start_ts);
+}
+
+export function editUserTime(discordId, secondsDelta, note = "edited by admin", guildId = null) {
   const row = getUserRow(discordId);
   if (!row) return null;
   row.total_seconds += secondsDelta;
@@ -125,6 +176,7 @@ export function editUserTime(discordId, secondsDelta, note = "edited by admin") 
   data.sessions.push({
     id: data.nextSessionId++,
     user_id: discordId,
+    guild_id: guildId,
     start_ts: Math.floor(Date.now() / 1000),
     end_ts: Math.floor(Date.now() / 1000),
     duration_seconds: secondsDelta,
@@ -135,13 +187,14 @@ export function editUserTime(discordId, secondsDelta, note = "edited by admin") 
   return row;
 }
 
-export function getUserTotalSeconds(discordId) {
+export function getUserTotalSeconds(discordId, guildId = null) {
   const family = getAccountFamily(discordId);
   if (!family) return 0;
   if (family.memberType === "sub") {
     return 0;
   }
-  return family.main.total_seconds + family.subs.reduce((sum, sub) => sum + sub.total_seconds, 0);
+  const ids = [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
+  return sumSessions(ids, { guildId });
 }
 
 function getWeekStartTs(timestamp) {
@@ -153,49 +206,42 @@ function getWeekStartTs(timestamp) {
   return Math.floor(date.getTime() / 1000);
 }
 
-export function getWeeklySeconds(discordId) {
+export function getWeeklySeconds(discordId, guildId = null) {
   const family = getAccountFamily(discordId);
   if (!family) return 0;
   if (family.memberType === "sub") return 0;
   const ids = [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
   const weekStart = getWeekStartTs(Math.floor(Date.now() / 1000));
-  return data.sessions
-    .filter((session) => session.end_ts && ids.includes(session.user_id) && session.end_ts >= weekStart)
-    .reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
+  return sumSessions(ids, { guildId, startTs: weekStart });
 }
 
-export function getLeaderboard(limit = 10) {
-  const aggregated = {};
-  for (const user of Object.values(data.users)) {
-    if (user.linked_main) continue;
-    aggregated[user.discord_id] = {
+export function getLeaderboard(limit = 10, guildId = null) {
+  const aggregated = [];
+  const mainUsers = Object.values(data.users).filter((user) => !user.linked_main);
+  for (const user of mainUsers) {
+    const subs = Object.values(data.users).filter((sub) => sub.linked_main === user.discord_id);
+    const ids = [user.discord_id, ...subs.map((sub) => sub.discord_id)];
+    aggregated.push({
       discord_id: user.discord_id,
       username: user.username,
-      total_seconds: user.total_seconds,
-    };
+      total_seconds: sumSessions(ids, { guildId }),
+    });
   }
-  for (const user of Object.values(data.users)) {
-    if (!user.linked_main) continue;
-    const main = aggregated[user.linked_main];
-    if (main) {
-      main.total_seconds += user.total_seconds;
-    }
-  }
-  return Object.values(aggregated)
+  return aggregated
     .sort((a, b) => b.total_seconds - a.total_seconds)
     .slice(0, limit)
     .map((user, index) => ({ position: index + 1, ...user }));
 }
 
-export function listAchievements(discordId) {
-  return data.achievements.filter((item) => item.user_id === discordId);
+export function listAchievements(discordId, guildId = null) {
+  return data.achievements.filter((item) => item.user_id === discordId && (guildId ? item.guild_id === guildId || item.guild_id == null : true));
 }
 
-export function unlockAchievement(discordId, key, name, description) {
-  if (data.achievements.some((item) => item.user_id === discordId && item.key === key)) {
+export function unlockAchievement(discordId, key, name, description, guildId = null) {
+  if (data.achievements.some((item) => item.user_id === discordId && item.key === key && item.guild_id === guildId)) {
     return false;
   }
-  data.achievements.push({ user_id: discordId, key, name, description, unlocked_at: Math.floor(Date.now() / 1000) });
+  data.achievements.push({ user_id: discordId, key, name, description, guild_id: guildId, unlocked_at: Math.floor(Date.now() / 1000) });
   saveDb();
   return true;
 }
@@ -210,7 +256,7 @@ export function addXp(discordId, xp) {
   return { xp: row.xp, level: row.level };
 }
 
-export function getSessionsForChart(discordId, days = 14) {
+export function getSessionsForChart(discordId, days = 14, guildId = null) {
   const family = getAccountFamily(discordId);
   if (!family) return [];
   if (family.memberType === "sub") return [];
@@ -221,6 +267,7 @@ export function getSessionsForChart(discordId, days = 14) {
   for (const session of data.sessions) {
     if (!ids.includes(session.user_id)) continue;
     if (!session.end_ts || session.end_ts < earliest) continue;
+    if (!sessionMatchesGuild(session, guildId)) continue;
     const day = new Date(session.end_ts * 1000).toISOString().slice(0, 10);
     totals[day] = (totals[day] || 0) + (session.duration_seconds || 0);
   }
@@ -265,14 +312,14 @@ export function getAchievementsToUnlock(totalSeconds) {
   return achievements;
 }
 
-export function awardSessionXpAndAchievements(discordId, durationSeconds) {
+export function awardSessionXpAndAchievements(discordId, durationSeconds, guildId = null) {
   const earnedXp = Math.max(1, Math.floor(durationSeconds / 300)) + 5;
   const result = addXp(discordId, earnedXp);
-  const totalSeconds = getUserTotalSeconds(discordId);
+  const totalSeconds = getUserTotalSeconds(discordId, guildId);
   const unlocks = getAchievementsToUnlock(totalSeconds);
   const unlocked = [];
   for (const [key, name, description] of unlocks) {
-    if (unlockAchievement(discordId, key, name, description)) {
+    if (unlockAchievement(discordId, key, name, description, guildId)) {
       unlocked.push({ key, name, description });
     }
   }

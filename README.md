@@ -23,6 +23,9 @@ Discordサーバー向けの学習記録ボットです。
 
 - `/study start`
 - `/study stop`
+- `/study current`
+- `/study pause`
+- `/study resume`
 - `/study stats`
 - `/study leaderboard`
 - `/study graph`
@@ -30,10 +33,14 @@ Discordサーバー向けの学習記録ボットです。
 - `/study unlink sub:@user`
 - `/study admin edit user:@user seconds:60 reason:mistake`
 
+- `/study start` は公開メッセージで通知されます。
+- `/study pause` / `/study resume` で学習を一時停止・再開できます。
+
 ## 仕組みの変更
 
 - ランキングはメンションではなくユーザー名で表示します
 - サブアカウントの学習時間はサブ側では0分扱いになり、メインアカウントに合算されます
+- 統計・ランキング・実績はサーバーごとに分けて集計されます
 - `/study start` と `/study stop` の通知は全員が見える公開メッセージになります
 
 ## 常時稼働について
