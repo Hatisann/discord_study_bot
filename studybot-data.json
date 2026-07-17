@@ -1,0 +1,183 @@
+{
+  "users": {
+    "936796772209164378": {
+      "discord_id": "936796772209164378",
+      "username": "hassan3699",
+      "xp": 124,
+      "level": 2,
+      "total_seconds": 15836,
+      "linked_main": null,
+      "updated_at": 1784296097
+    },
+    "1420404574556262410": {
+      "discord_id": "1420404574556262410",
+      "username": "polarlow_",
+      "xp": 6,
+      "level": 1,
+      "total_seconds": 17,
+      "linked_main": "936796772209164378",
+      "updated_at": 1784263614
+    },
+    "780552476498722898": {
+      "discord_id": "780552476498722898",
+      "username": "tornerd",
+      "xp": 0,
+      "level": 1,
+      "total_seconds": 4200,
+      "linked_main": null,
+      "updated_at": 1784262869
+    }
+  },
+  "sessions": [
+    {
+      "id": 1,
+      "user_id": "936796772209164378",
+      "start_ts": 1784257758,
+      "end_ts": 1784257797,
+      "duration_seconds": 39,
+      "note": null,
+      "created_at": 1784257758
+    },
+    {
+      "id": 2,
+      "user_id": "936796772209164378",
+      "start_ts": 1784257879,
+      "end_ts": 1784257879,
+      "duration_seconds": 1000000,
+      "note": "管理者による修正",
+      "created_at": 1784257879
+    },
+    {
+      "id": 3,
+      "user_id": "936796772209164378",
+      "start_ts": 1784262077,
+      "end_ts": 1784263447,
+      "duration_seconds": 1370,
+      "note": null,
+      "created_at": 1784262077
+    },
+    {
+      "id": 4,
+      "user_id": "936796772209164378",
+      "start_ts": 1784262431,
+      "end_ts": 1784262431,
+      "duration_seconds": 11520,
+      "note": "管理者による修正",
+      "created_at": 1784262431
+    },
+    {
+      "id": 5,
+      "user_id": "780552476498722898",
+      "start_ts": 1784262869,
+      "end_ts": 1784262869,
+      "duration_seconds": 4200,
+      "note": "管理者による修正",
+      "created_at": 1784262869
+    },
+    {
+      "id": 6,
+      "user_id": "1420404574556262410",
+      "start_ts": 1784263597,
+      "end_ts": 1784263614,
+      "duration_seconds": 17,
+      "note": null,
+      "created_at": 1784263597
+    },
+    {
+      "id": 7,
+      "user_id": "936796772209164378",
+      "start_ts": 1784264027,
+      "end_ts": 1784264087,
+      "duration_seconds": 60,
+      "note": null,
+      "created_at": 1784264027
+    },
+    {
+      "id": 8,
+      "user_id": "936796772209164378",
+      "start_ts": 1784265125,
+      "end_ts": 1784265125,
+      "duration_seconds": -1001520,
+      "note": "管理者による修正",
+      "created_at": 1784265125
+    },
+    {
+      "id": 9,
+      "user_id": "1420404574556262410",
+      "start_ts": 1784265243,
+      "end_ts": null,
+      "duration_seconds": null,
+      "note": null,
+      "created_at": 1784265243
+    },
+    {
+      "id": 10,
+      "user_id": "936796772209164378",
+      "guild_id": "936801204808335380",
+      "start_ts": 1784266503,
+      "end_ts": 1784296056,
+      "duration_seconds": 29567,
+      "accumulated_seconds": 29567,
+      "paused_at": null,
+      "note": null,
+      "created_at": 1784265595
+    },
+    {
+      "id": 11,
+      "user_id": "936796772209164378",
+      "guild_id": "936801204808335380",
+      "start_ts": 1784296097,
+      "end_ts": 1784296097,
+      "duration_seconds": -25200,
+      "note": "管理者による修正",
+      "created_at": 1784296097
+    }
+  ],
+  "achievements": [
+    {
+      "user_id": "936796772209164378",
+      "key": "first_hour",
+      "name": "最初の1時間",
+      "description": "学習1時間達成！",
+      "unlocked_at": 1784263447
+    },
+    {
+      "user_id": "936796772209164378",
+      "key": "ten_hours",
+      "name": "10時間突破",
+      "description": "学習10時間達成！",
+      "unlocked_at": 1784263447
+    },
+    {
+      "user_id": "936796772209164378",
+      "key": "one_day",
+      "name": "24時間学習",
+      "description": "学習24時間突破！",
+      "unlocked_at": 1784263447
+    },
+    {
+      "user_id": "936796772209164378",
+      "key": "hundred_hours",
+      "name": "100時間達成",
+      "description": "学習100時間突破！",
+      "unlocked_at": 1784263447
+    },
+    {
+      "user_id": "936796772209164378",
+      "key": "first_hour",
+      "name": "最初の1時間",
+      "description": "学習1時間達成！",
+      "guild_id": "936801204808335380",
+      "unlocked_at": 1784296056
+    },
+    {
+      "user_id": "936796772209164378",
+      "key": "ten_hours",
+      "name": "10時間突破",
+      "description": "学習10時間達成！",
+      "guild_id": "936801204808335380",
+      "unlocked_at": 1784296056
+    }
+  ],
+  "nextSessionId": 12
+}
