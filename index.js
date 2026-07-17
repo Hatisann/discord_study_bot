@@ -228,10 +228,10 @@ client.on("interactionCreate", async (interaction) => {
       }
       const active = getActiveSession(authorizedTargetId);
       if (active) {
-        return await interaction.reply({ content: `${targetUser ? targetUser.username : "対象"} はすでに学習中です。先に /study stop してください。`, ephemeral: false });
+        return await interaction.reply({ content: `${targetUser ? targetUser.username : "対象"} はすでに学習中です。先に /study stop してください。` });
       }
       startSession(authorizedTargetId, interaction.guildId);
-      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}開始しました！📚`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}開始しました！📚` });
     }
     case "stop": {
       const targetUser = interaction.options.getUser("user");
@@ -242,7 +242,7 @@ client.on("interactionCreate", async (interaction) => {
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return await interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "現在進行中の学習が見つかりません。" });
       }
       const stopped = stopSession(session.user_id);
       const award = awardSessionXpAndAchievements(session.user_id, stopped.duration_seconds, session.guild_id);
@@ -251,7 +251,7 @@ client.on("interactionCreate", async (interaction) => {
       if (award.unlocked.length > 0) {
         response += `🎉 新しい実績を獲得しました: ${award.unlocked.map((item) => item.name).join("、")}\n`;
       }
-      return await interaction.reply({ content: response, ephemeral: false });
+      return await interaction.reply({ content: response });
     }
     case "current": {
       const targetUser = interaction.options.getUser("user");
@@ -262,11 +262,11 @@ client.on("interactionCreate", async (interaction) => {
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return await interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "現在進行中の学習が見つかりません。" });
       }
       const elapsed = getSessionElapsedSeconds(session);
       const status = session.paused_at != null ? "一時停止中" : "進行中";
-      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "現在の"}学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "現在の"}学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**` });
     }
     case "pause": {
       const targetUser = interaction.options.getUser("user");
@@ -277,14 +277,14 @@ client.on("interactionCreate", async (interaction) => {
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return await interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "現在進行中の学習が見つかりません。" });
       }
       if (session.paused_at != null) {
-        return await interaction.reply({ content: "すでに一時停止中です。/study resume で再開できます。", ephemeral: false });
+        return await interaction.reply({ content: "すでに一時停止中です。/study resume で再開できます。" });
       }
       const paused = pauseSession(session.user_id);
       const elapsed = getSessionElapsedSeconds(paused);
-      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を一時停止しました。経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を一時停止しました。経過時間: **${formatDuration(elapsed)}**` });
     }
     case "resume": {
       const targetUser = interaction.options.getUser("user");
@@ -295,13 +295,13 @@ client.on("interactionCreate", async (interaction) => {
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return await interaction.reply({ content: "再開する一時停止中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "再開する一時停止中の学習が見つかりません。" });
       }
       if (session.paused_at == null) {
-        return await interaction.reply({ content: "現在、停止中のセッションはありません。", ephemeral: false });
+        return await interaction.reply({ content: "現在、停止中のセッションはありません。" });
       }
       resumeSession(session.user_id);
-      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を再開しました！📚`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を再開しました！📚` });
     }
     case "stats": {
       const user = getUser(author.id);
@@ -325,7 +325,7 @@ client.on("interactionCreate", async (interaction) => {
         )
         .setColor(0x3b82f6)
         .setTimestamp();
-      return await interaction.reply({ embeds: [embed], ephemeral: false });
+      return await interaction.reply({ embeds: [embed] });
     }
     case "leaderboard": {
       const top = getLeaderboard(10, interaction.guildId);
@@ -379,14 +379,14 @@ client.on("interactionCreate", async (interaction) => {
       if (!linkSubAccount(main.id, sub.id)) {
         return await interaction.reply({ content: "紐付けに失敗しました。すでに紐付け済みか、対象がメインアカウントとして使用できない可能性があります。", flags: 64 });
       }
-      return await interaction.reply({ content: `${sub.username} を ${main.username} のサブアカウントとして紐付けました。`, ephemeral: false });
+      return await interaction.reply({ content: `${sub.username} を ${main.username} のサブアカウントとして紐付けました。` });
     }
     case "unlink": {
       const sub = interaction.options.getUser("sub", true);
       if (!unlinkSubAccount(sub.id)) {
         return await interaction.reply({ content: "紐付け解除に失敗しました。対象はサブアカウントではない可能性があります。", flags: 64 });
       }
-      return await interaction.reply({ content: `${sub.username} の紐付けを解除しました。`, ephemeral: false });
+      return await interaction.reply({ content: `${sub.username} の紐付けを解除しました。` });
     }
     case "admin_edit": {
       const member = interaction.options.getUser("user", true);
@@ -400,18 +400,27 @@ client.on("interactionCreate", async (interaction) => {
       if (!updated) {
         return await interaction.reply({ content: "指定したユーザーが見つかりませんでした。", flags: 64 });
       }
-      return await interaction.reply({ content: `${member.username} の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}`, ephemeral: false });
+      return await interaction.reply({ content: `${member.username} の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}` });
     }
     default:
       return await interaction.reply({ content: "不明なサブコマンドです。", flags: 64 });
   }
   } catch (error) {
     console.error("interaction error:", error);
-    if (interaction.replied || interaction.deferred) {
-      return await interaction.followUp({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
+      } else {
+        await interaction.reply({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
+      }
+    } catch (replyError) {
+      console.error("failed to send error reply:", replyError);
     }
-    return await interaction.reply({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
   }
+});
+
+client.on("error", (error) => {
+  console.error("Discord client error:", error);
 });
 
 client.login(token);
