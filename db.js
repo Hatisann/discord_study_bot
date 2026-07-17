@@ -42,6 +42,33 @@ function normalizeSessionRow(row) {
   };
 }
 
+function allRows(statement, params = []) {
+  const rows = [];
+  if (params.length) {
+    statement.bind(params);
+  }
+  try {
+    while (statement.step()) {
+      rows.push(statement.getAsObject());
+    }
+  } finally {
+    statement.free();
+  }
+  return rows;
+}
+
+function getRow(statement, params = []) {
+  if (params.length) {
+    statement.bind(params);
+  }
+  try {
+    if (!statement.step()) return null;
+    return statement.getAsObject();
+  } finally {
+    statement.free();
+  }
+}
+
 function initSqliteSchema() {
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -241,7 +268,7 @@ export function initDatabase(filename = "studybot-data.json") {
 
 function getUserRow(discordId) {
   if (useSqlite) {
-    return sqliteDb.prepare("SELECT * FROM users WHERE discord_id = ?").get([discordId]) || null;
+    return getRow(sqliteDb.prepare("SELECT * FROM users WHERE discord_id = ?"), [discordId]);
   }
   return data.users[discordId] || null;
 }
@@ -298,7 +325,7 @@ export function getAccountFamily(discordId) {
       const main = getUserRow(own.linked_main);
       return { memberType: "sub", main, sub: own };
     }
-    const subs = sqliteDb.prepare("SELECT * FROM users WHERE linked_main = ?").all([discordId]);
+    const subs = allRows(sqliteDb.prepare("SELECT * FROM users WHERE linked_main = ?"), [discordId]);
     return { memberType: "main", main: own, subs };
   }
 
@@ -336,7 +363,7 @@ function sumSessions(userIds, options = {}) {
       sql += " AND (guild_id = ? OR guild_id IS NULL)";
       params.push(guildId);
     }
-    const row = sqliteDb.prepare(sql).get(params);
+    const row = getRow(sqliteDb.prepare(sql), params);
     return row?.total ?? 0;
   }
 
@@ -352,7 +379,7 @@ function sumSessions(userIds, options = {}) {
 
 export function getActiveSession(discordId) {
   if (useSqlite) {
-    return normalizeSessionRow(sqliteDb.prepare("SELECT * FROM sessions WHERE user_id = ? AND end_ts IS NULL LIMIT 1").get([discordId]));
+    return normalizeSessionRow(getRow(sqliteDb.prepare("SELECT * FROM sessions WHERE user_id = ? AND end_ts IS NULL LIMIT 1"), [discordId]));
   }
   return data.sessions.find((session) => session.user_id === discordId && session.end_ts == null) || null;
 }
@@ -377,7 +404,7 @@ export function startSession(discordId, guildId = null, note = null) {
       )
       .run([discordId, guildId, now, note, now]);
     saveSqlite();
-    const row = sqliteDb.prepare("SELECT * FROM sessions WHERE id = last_insert_rowid()").get();
+    const row = getRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = last_insert_rowid()"));
     return normalizeSessionRow(row);
   }
 
@@ -414,7 +441,7 @@ export function stopSession(discordId) {
       .run([now, seconds, seconds, session.id]);
     sqliteDb.prepare("UPDATE users SET total_seconds = total_seconds + ?, updated_at = ? WHERE discord_id = ?").run([seconds, now, discordId]);
     saveSqlite();
-    return normalizeSessionRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = ?").get([session.id]));
+    return normalizeSessionRow(getRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = ?"), [session.id]));
   }
 
   const session = getActiveSession(discordId);
@@ -445,7 +472,7 @@ export function pauseSession(discordId) {
     const newAccumulated = (session.accumulated_seconds || 0) + (now - session.start_ts);
     sqliteDb.prepare("UPDATE sessions SET accumulated_seconds = ?, paused_at = ? WHERE id = ?").run([newAccumulated, now, session.id]);
     saveSqlite();
-    return normalizeSessionRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = ?").get([session.id]));
+    return normalizeSessionRow(getRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = ?"), [session.id]));
   }
 
   const session = getActiveSession(discordId);
@@ -464,7 +491,7 @@ export function resumeSession(discordId) {
     const now = Math.floor(Date.now() / 1000);
     sqliteDb.prepare("UPDATE sessions SET start_ts = ?, paused_at = NULL WHERE id = ?").run([now, session.id]);
     saveSqlite();
-    return normalizeSessionRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = ?").get([session.id]));
+    return normalizeSessionRow(getRow(sqliteDb.prepare("SELECT * FROM sessions WHERE id = ?"), [session.id]));
   }
 
   const session = getActiveSession(discordId);
@@ -540,9 +567,9 @@ export function getWeeklySeconds(discordId, guildId = null) {
 export function getLeaderboard(limit = 10, guildId = null) {
   if (useSqlite) {
     const aggregated = [];
-    const mainUsers = sqliteDb.prepare("SELECT * FROM users WHERE linked_main IS NULL").all();
+    const mainUsers = allRows(sqliteDb.prepare("SELECT * FROM users WHERE linked_main IS NULL"));
     for (const user of mainUsers) {
-      const subs = sqliteDb.prepare("SELECT discord_id FROM users WHERE linked_main = ?").all([user.discord_id]);
+      const subs = allRows(sqliteDb.prepare("SELECT discord_id FROM users WHERE linked_main = ?"), [user.discord_id]);
       const ids = [user.discord_id, ...subs.map((sub) => sub.discord_id)];
       aggregated.push({
         discord_id: user.discord_id,
@@ -576,20 +603,16 @@ export function getLeaderboard(limit = 10, guildId = null) {
 export function listAchievements(discordId, guildId = null) {
   if (useSqlite) {
     if (guildId) {
-      return sqliteDb
-        .prepare("SELECT * FROM achievements WHERE user_id = ? AND (guild_id = ? OR guild_id IS NULL)")
-        .all([discordId, guildId]);
+      return allRows(sqliteDb.prepare("SELECT * FROM achievements WHERE user_id = ? AND (guild_id = ? OR guild_id IS NULL)"), [discordId, guildId]);
     }
-    return sqliteDb.prepare("SELECT * FROM achievements WHERE user_id = ?").all([discordId]);
+    return allRows(sqliteDb.prepare("SELECT * FROM achievements WHERE user_id = ?"), [discordId]);
   }
   return data.achievements.filter((item) => item.user_id === discordId && (guildId ? item.guild_id === guildId || item.guild_id == null : true));
 }
 
 export function unlockAchievement(discordId, key, name, description, guildId = null) {
   if (useSqlite) {
-    const exists = sqliteDb
-      .prepare("SELECT 1 FROM achievements WHERE user_id = ? AND key = ? AND guild_id IS ?")
-      .get([discordId, key, guildId]);
+    const exists = getRow(sqliteDb.prepare("SELECT 1 FROM achievements WHERE user_id = ? AND key = ? AND guild_id IS ?"), [discordId, key, guildId]);
     if (exists) return false;
     sqliteDb
       .prepare(
@@ -642,7 +665,7 @@ export function getSessionsForChart(discordId, days = 14, guildId = null) {
       params.push(guildId);
     }
     sql += " GROUP BY day";
-    return sqliteDb.prepare(sql).all(params).map((row) => ({ day: row.day, total_seconds: row.total_seconds }));
+    return allRows(sqliteDb.prepare(sql), params).map((row) => ({ day: row.day, total_seconds: row.total_seconds }));
   }
 
   const ids = getFamilyIds(discordId);
