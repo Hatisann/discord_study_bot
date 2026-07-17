@@ -204,7 +204,11 @@ client.on("interactionCreate", async (interaction) => {
       const weekly = getWeeklySeconds(author.id);
       const title = getTitleForWeeklySeconds(weekly);
       const family = getAccountFamily(author.id);
-      const linked = family.memberType === "sub" ? `メインアカウント: <@${family.main.discord_id}>` : family.subs.length ? `紐付け済みサブアカウント: ${family.subs.map((s) => `<@${s.discord_id}>`).join("、")}` : "紐付けなし";
+      const linked = family.memberType === "sub"
+        ? `メインアカウント: ${family.main.username}`
+        : family.subs.length
+          ? `紐付け済みサブアカウント: ${family.subs.map((s) => s.username).join("、")}`
+          : "紐付けなし";
       const embed = new EmbedBuilder()
         .setTitle(`${author.username} さんの学習記録`)
         .addFields(
@@ -270,14 +274,14 @@ client.on("interactionCreate", async (interaction) => {
       if (!linkSubAccount(main.id, sub.id)) {
         return interaction.reply({ content: "紐付けに失敗しました。すでに紐付け済みか、対象がメインアカウントとして使用できない可能性があります。", ephemeral: true });
       }
-      return interaction.reply({ content: `<@${sub.id}> を <@${main.id}> のサブアカウントとして紐付けました。`, ephemeral: false });
+      return interaction.reply({ content: `${sub.username} を ${main.username} のサブアカウントとして紐付けました。`, ephemeral: false });
     }
     case "unlink": {
       const sub = interaction.options.getUser("sub", true);
       if (!unlinkSubAccount(sub.id)) {
         return interaction.reply({ content: "紐付け解除に失敗しました。対象はサブアカウントではない可能性があります。", ephemeral: true });
       }
-      return interaction.reply({ content: `<@${sub.id}> の紐付けを解除しました。`, ephemeral: false });
+      return interaction.reply({ content: `${sub.username} の紐付けを解除しました。`, ephemeral: false });
     }
     case "admin_edit": {
       const member = interaction.options.getUser("user", true);
@@ -291,7 +295,7 @@ client.on("interactionCreate", async (interaction) => {
       if (!updated) {
         return interaction.reply({ content: "指定したユーザーが見つかりませんでした。", ephemeral: true });
       }
-      return interaction.reply({ content: `<@${member.id}> の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}`, ephemeral: false });
+      return interaction.reply({ content: `${member.username} の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}`, ephemeral: false });
     }
     default:
       return interaction.reply({ content: "不明なサブコマンドです。", ephemeral: true });
