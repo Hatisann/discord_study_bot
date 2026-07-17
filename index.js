@@ -224,25 +224,25 @@ client.on("interactionCreate", async (interaction) => {
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
+        return await interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const active = getActiveSession(authorizedTargetId);
       if (active) {
-        return interaction.reply({ content: `${targetUser ? targetUser.username : "対象"} はすでに学習中です。先に /study stop してください。`, ephemeral: false });
+        return await interaction.reply({ content: `${targetUser ? targetUser.username : "対象"} はすでに学習中です。先に /study stop してください。`, ephemeral: false });
       }
       startSession(authorizedTargetId, interaction.guildId);
-      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}開始しました！📚`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}開始しました！📚`, ephemeral: false });
     }
     case "stop": {
       const targetUser = interaction.options.getUser("user");
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
+        return await interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
       }
       const stopped = stopSession(session.user_id);
       const award = awardSessionXpAndAchievements(session.user_id, stopped.duration_seconds, session.guild_id);
@@ -251,57 +251,57 @@ client.on("interactionCreate", async (interaction) => {
       if (award.unlocked.length > 0) {
         response += `🎉 新しい実績を獲得しました: ${award.unlocked.map((item) => item.name).join("、")}\n`;
       }
-      return interaction.reply({ content: response, ephemeral: false });
+      return await interaction.reply({ content: response, ephemeral: false });
     }
     case "current": {
       const targetUser = interaction.options.getUser("user");
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
+        return await interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
       }
       const elapsed = getSessionElapsedSeconds(session);
       const status = session.paused_at != null ? "一時停止中" : "進行中";
-      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "現在の"}学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "現在の"}学習: **${status}**\n経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
     }
     case "pause": {
       const targetUser = interaction.options.getUser("user");
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
+        return await interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "現在進行中の学習が見つかりません。", ephemeral: false });
       }
       if (session.paused_at != null) {
-        return interaction.reply({ content: "すでに一時停止中です。/study resume で再開できます。", ephemeral: false });
+        return await interaction.reply({ content: "すでに一時停止中です。/study resume で再開できます。", ephemeral: false });
       }
       const paused = pauseSession(session.user_id);
       const elapsed = getSessionElapsedSeconds(paused);
-      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を一時停止しました。経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を一時停止しました。経過時間: **${formatDuration(elapsed)}**`, ephemeral: false });
     }
     case "resume": {
       const targetUser = interaction.options.getUser("user");
       const targetId = targetUser?.id ?? author.id;
       const authorizedTargetId = getAuthorizedTargetId(author.id, targetId);
       if (!authorizedTargetId) {
-        return interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
+        return await interaction.reply({ content: "指定したユーザーの操作は許可されていません。", flags: 64 });
       }
       const session = getActiveSession(authorizedTargetId);
       if (!session) {
-        return interaction.reply({ content: "再開する一時停止中の学習が見つかりません。", ephemeral: false });
+        return await interaction.reply({ content: "再開する一時停止中の学習が見つかりません。", ephemeral: false });
       }
       if (session.paused_at == null) {
-        return interaction.reply({ content: "現在、停止中のセッションはありません。", ephemeral: false });
+        return await interaction.reply({ content: "現在、停止中のセッションはありません。", ephemeral: false });
       }
       resumeSession(session.user_id);
-      return interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を再開しました！📚`, ephemeral: false });
+      return await interaction.reply({ content: `${targetUser ? `${targetUser.username} の` : "学習"}を再開しました！📚`, ephemeral: false });
     }
     case "stats": {
       const user = getUser(author.id);
@@ -325,7 +325,7 @@ client.on("interactionCreate", async (interaction) => {
         )
         .setColor(0x3b82f6)
         .setTimestamp();
-      return interaction.reply({ embeds: [embed], ephemeral: false });
+      return await interaction.reply({ embeds: [embed], ephemeral: false });
     }
     case "leaderboard": {
       const top = getLeaderboard(10, interaction.guildId);
@@ -334,7 +334,7 @@ client.on("interactionCreate", async (interaction) => {
         .setTitle("学習ランキング")
         .setDescription(description || "記録がまだありません。")
         .setColor(0x22c55e);
-      return interaction.reply({ embeds: [embed] });
+      return await interaction.reply({ embeds: [embed] });
     }
     case "graph": {
       const days = interaction.options.getInteger("days") ?? 14;
@@ -351,66 +351,66 @@ client.on("interactionCreate", async (interaction) => {
       }
       const chartUrl = createChartUrl(labels, values, author.username);
       const embed = new EmbedBuilder()
-        .setTitle(`${author.username} さんの学習グラフ`)        
+        .setTitle(`${author.username} さんの学習グラフ`)
         .setImage(chartUrl)
         .setColor(0x6366f1);
-      return interaction.reply({ embeds: [embed] });
+      return await interaction.reply({ embeds: [embed] });
     }
     case "achievements": {
       const achievements = listAchievements(author.id, interaction.guildId);
       if (achievements.length === 0) {
-        return interaction.reply({ content: "まだ実績はありません。継続して学習しましょう！", flags: 64 });
+        return await interaction.reply({ content: "まだ実績はありません。継続して学習しましょう！", flags: 64 });
       }
       const description = achievements.map((item) => `• **${item.name}** - ${item.description}`).join("\n");
       const embed = new EmbedBuilder()
-        .setTitle(`${author.username} さんの実績`)        
+        .setTitle(`${author.username} さんの実績`)
         .setDescription(description)
         .setColor(0xf59e0b);
-      return interaction.reply({ embeds: [embed] });
+      return await interaction.reply({ embeds: [embed] });
     }
     case "link": {
       const main = interaction.options.getUser("main", true);
       const sub = interaction.options.getUser("sub", true);
       if (main.id === sub.id) {
-        return interaction.reply({ content: "メインアカウントとサブアカウントは別のユーザーである必要があります。", flags: 64 });
+        return await interaction.reply({ content: "メインアカウントとサブアカウントは別のユーザーである必要があります。", flags: 64 });
       }
       ensureUser(main.id, main.username);
       ensureUser(sub.id, sub.username);
       if (!linkSubAccount(main.id, sub.id)) {
-        return interaction.reply({ content: "紐付けに失敗しました。すでに紐付け済みか、対象がメインアカウントとして使用できない可能性があります。", flags: 64 });
+        return await interaction.reply({ content: "紐付けに失敗しました。すでに紐付け済みか、対象がメインアカウントとして使用できない可能性があります。", flags: 64 });
       }
-      return interaction.reply({ content: `${sub.username} を ${main.username} のサブアカウントとして紐付けました。`, ephemeral: false });
+      return await interaction.reply({ content: `${sub.username} を ${main.username} のサブアカウントとして紐付けました。`, ephemeral: false });
     }
     case "unlink": {
       const sub = interaction.options.getUser("sub", true);
       if (!unlinkSubAccount(sub.id)) {
-        return interaction.reply({ content: "紐付け解除に失敗しました。対象はサブアカウントではない可能性があります。", flags: 64 });
+        return await interaction.reply({ content: "紐付け解除に失敗しました。対象はサブアカウントではない可能性があります。", flags: 64 });
       }
-      return interaction.reply({ content: `${sub.username} の紐付けを解除しました。`, ephemeral: false });
+      return await interaction.reply({ content: `${sub.username} の紐付けを解除しました。`, ephemeral: false });
     }
     case "admin_edit": {
       const member = interaction.options.getUser("user", true);
       const seconds = interaction.options.getInteger("seconds", true);
       const reason = interaction.options.getString("reason") ?? "管理者による修正";
       if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({ content: "このコマンドを実行するには管理者権限が必要です。", flags: 64 });
+        return await interaction.reply({ content: "このコマンドを実行するには管理者権限が必要です。", flags: 64 });
       }
       ensureUser(member.id, member.username);
       const updated = editUserTime(member.id, seconds, reason, interaction.guildId);
       if (!updated) {
-        return interaction.reply({ content: "指定したユーザーが見つかりませんでした。", flags: 64 });
+        return await interaction.reply({ content: "指定したユーザーが見つかりませんでした。", flags: 64 });
       }
-      return interaction.reply({ content: `${member.username} の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}`, ephemeral: false });
+      return await interaction.reply({ content: `${member.username} の学習時間を ${seconds >= 0 ? `+${formatDuration(seconds)}` : `-${formatDuration(Math.abs(seconds))}`} で修正しました。理由: ${reason}`, ephemeral: false });
     }
     default:
-      return interaction.reply({ content: "不明なサブコマンドです。", flags: 64 });
+      return await interaction.reply({ content: "不明なサブコマンドです。", flags: 64 });
   }
   } catch (error) {
     console.error("interaction error:", error);
     if (interaction.replied || interaction.deferred) {
-      return interaction.followUp({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
+      return await interaction.followUp({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
     }
-    return interaction.reply({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
+    return await interaction.reply({ content: "エラーが発生しました。管理者に確認してください。", flags: 64 });
   }
 });
 
