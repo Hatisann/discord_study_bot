@@ -51,6 +51,7 @@ if (!token) {
   process.exit(1);
 }
 
+console.log(`Using database file: ${dbFile}`);
 initDatabase(dbFile);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
