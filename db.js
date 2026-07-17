@@ -80,7 +80,7 @@ function getFamilyIds(discordId) {
   const family = getAccountFamily(discordId);
   if (!family) return [discordId];
   if (family.memberType === "sub") {
-    return [family.main.discord_id, ...family.main.subs.map((sub) => sub.discord_id)];
+    return [family.main.discord_id, family.sub.discord_id];
   }
   return [family.main.discord_id, ...family.subs.map((sub) => sub.discord_id)];
 }
