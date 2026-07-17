@@ -44,7 +44,7 @@ app.listen(port, () => {
 
 const token = process.env.DISCORD_TOKEN;
 const guildId = process.env.GUILD_ID;
-const dbFile = process.env.DATABASE_FILE || "studybot.sqlite";
+const dbFile = process.env.DATABASE_FILE || "studybot-data.json";
 
 if (!token) {
   console.error("DISCORD_TOKEN is required in .env");

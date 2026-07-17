@@ -17,6 +17,7 @@ Discordサーバー向けの学習記録ボットです。
 1. `studybot` フォルダへ移動
 2. `npm install`
 3. `.env` を作成し、`DISCORD_TOKEN` と `GUILD_ID` を設定
+   - 必要に応じて `DATABASE_FILE=studybot-data.json` を追加します
 4. `npm start`
 
 ## 使い方

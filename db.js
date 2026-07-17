@@ -17,13 +17,16 @@ export function initDatabase(filename = "studybot-data.json") {
   dbPath = resolve(process.cwd(), filename);
   if (existsSync(dbPath)) {
     try {
-      data = JSON.parse(readFileSync(dbPath, "utf8"));
+      const raw = readFileSync(dbPath, "utf8");
+      data = JSON.parse(raw);
       data.users = data.users || {};
       data.sessions = data.sessions || [];
       data.achievements = data.achievements || [];
       data.nextSessionId = data.nextSessionId || 1;
     } catch (error) {
-      data = { users: {}, sessions: [], achievements: [], nextSessionId: 1 };
+      console.error(`Failed to parse database file at ${dbPath}: ${error.message}`);
+      console.error("DATABASE_FILE must point to a valid JSON database file.");
+      process.exit(1);
     }
   }
   saveDb();
